@@ -16,7 +16,11 @@ login_info = login_info.split('\n')
 converted_into_list = []
 gallary_src_url_list = []
 property_type_list = ["apartment", "house", "villa", "resort", "studio", "cottage", "hut",
-                      "bungalow", "camp", "chalet", "condo", "houseboat", "penthouse", "room", "townhouse", "yacht"]
+                      "bungalow", "camp", "chalet", "condo", "houseboat", "penthouse", "room", "townhouse", "yacht", "fort"]
+
+location_list = ['Goa', 'Wayanad', 'Bangalore', 'Delhi', 'Manali', 'Shimla', 'Alappuzha', 'Munnar', 'Lucknow',
+                 'Gokarna', 'Darjeeling', 'Srinagar', 'Jaipur', 'Jodhpur', 'Kullu', 'Hyderabad', 'Lonavala', 'Nainital',
+                 'Idukki', 'Mumbai', 'Agra', 'Leh', 'Alibagh']
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 logging.basicConfig(level=logging.INFO,
@@ -25,9 +29,10 @@ logging.basicConfig(level=logging.INFO,
                     filemode='w')
 
 
-def web_crawler(url):
-    r = requests.get(url)
-    soup = BeautifulSoup(r.content, 'html.parser')
+def web_crawler(soup, index):
+    logging.info("@@@@@@@@@@@@@@@ Crawling started for index :"+ str(index))
+    #r = requests.get(url)
+    #soup = BeautifulSoup(r.content, 'html.parser')
     general_data = soup.find_all("div", attrs={"class": "property-photo-summary-wrapper"})
     for item in general_data:
         try:
@@ -55,7 +60,7 @@ def web_crawler(url):
                 property_name_title = None
             if property_name:
                 property_name = property_name[0].text
-                #property_type = property_name.rsplit(None, 1)[-1].capitalize()
+                # property_type = property_name.rsplit(None, 1)[-1].capitalize()
                 for type in property_type_list:
                     if type in property_name:
                         property_type = type.capitalize()
@@ -77,7 +82,7 @@ def web_crawler(url):
             else:
                 price = None
 
-            bed_rooms, bath_attached, guest_can_sleep, source, city_name, region_or_locality, listing_type = None, None, None, "flipkey", "Wayanad", "Wayanad", None
+            bed_rooms, bath_attached, guest_can_sleep, source, city_name, region_or_locality, listing_type = None, None, None, "flipkey", location_list[index], location_list[index], None
             if room_data:
                 room_data = room_data[0].text
                 room_data_list = room_data.split('/')
@@ -95,8 +100,10 @@ def web_crawler(url):
                                         guest_can_sleep, price, rating_label, source, city_name, region_or_locality,
                                         listing_type, property_type, property_id))
         except Exception as ex:
-            logging.info("Error has occurred :" + str(ex))
+            logging.info("Error has occurred while crawling:" + str(ex))
 
+    logging.info("@@@@@@@@@@@@@@@ Crawling ended for index :"+ str(index))
+    logging.info(converted_into_list)
 
 def insert_into_db():
     try:
@@ -136,10 +143,31 @@ def insert_images_into_db():
 
 
 if __name__ == '__main__':
-    count = 1
-    while (count < 3):
-        web_crawler(config_info[1] + str(count))
-        count = count + 1
+    counter = 0
+    while counter < 23:
+        try:
+            logging.info(config_info[counter] +"1")
+            r = requests.get(config_info[counter] + str(counter))
+            soup = BeautifulSoup(r.content, 'html.parser')
+            num_of_pages = soup.find("div", attrs={"id": "search-pages"}).text
 
-    insert_into_db()
-    insert_images_into_db()
+            page_count = num_of_pages.split(' ')[-1]
+            count = 1
+            while (count < int(page_count)+1):
+               logging.info("================Crawling for page : "+config_info[counter] + str(count)+" ==========================")
+               r = requests.get(config_info[counter] + str(count))
+               soup = BeautifulSoup(r.content, 'html.parser')
+               web_crawler(soup, counter)
+               count = count + 1
+
+        except Exception as ex:
+               logging.info("Error has occured in main:"+str(ex))
+               r = requests.get(config_info[counter] + str(1))
+               soup = BeautifulSoup(r.content, 'html.parser')
+               web_crawler(soup, counter)
+        finally:
+            counter = counter + 1
+
+insert_into_db()
+insert_images_into_db()
+
